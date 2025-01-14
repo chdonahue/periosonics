@@ -8,6 +8,8 @@ import sys
 import time
 import numpy as np
 import h5py
+from pathlib import Path
+import os
 import threading
 #import multiprocessing, time, signal
 from numpy import savetxt
@@ -20,7 +22,6 @@ import gui_secondary
 
 class Gui_opcard(QtWidgets.QDialog):
        
-    #def __init__(self, parent=None, deviceNr='USB0::0x0547::0x1003::SN_19.203::RAW'):
     def __init__(self, parent=None, deviceNr='USB0::0x0547::0x1003::SN_24.99::RAW'):
         QtWidgets.QDialog.__init__(self, parent)
 
@@ -74,7 +75,7 @@ class Gui_opcard(QtWidgets.QDialog):
         self.setLayout(self.vbox)
 
         #------------------------------------------------------------------------------ box and setLayout
- 
+        
 
 
     def __del__(self):
@@ -144,6 +145,7 @@ class Gui_opcard(QtWidgets.QDialog):
 
     def collect_pulses(self):
         """Collect 10 pulses and save to HDF5"""
+        INTER_PULSE_INTERVAL = 50  # ms
         try:
             # Get values from UI
             subject_id = self.sc.subject_id.text()
@@ -180,14 +182,23 @@ class Gui_opcard(QtWidgets.QDialog):
                 sequence_data.append(np.array(self.settings.opcard.data))
                 timestamps.append(datetime.now().timestamp())
                 
-                if i < 9:  # Don't wait after last pulse
-                    time.sleep(0.1)
+                if i < 9:  
+                    time.sleep(INTER_PULSE_INTERVAL / 1000)  # Convert ms to seconds
 
             progress.setValue(10)
             
-            # Save to HDF5
-            filename = f"{subject_id}.h5"
-            with h5py.File(filename, 'a') as f:
+            # Get path to save data:
+            cur_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+            # Go up one level to root, then into data
+            data_dir = os.path.join(cur_dir.parent,"data")
+            # Create the data directory if it doesn't exist
+            os.makedirs(data_dir, exist_ok=True)
+
+            # Create the full path for your file
+            timestamp_str = datetime.now().strftime('%Y%m%d') # Note that this will 
+            filename = f"{subject_id}_{timestamp_str}.h5"
+            save_path = os.path.join(data_dir, filename)
+            with h5py.File(save_path, 'a') as f:
                 # Create/get tooth group
                 tooth_group = f.require_group(f"tooth_{tooth_id:02d}")
                 
@@ -197,7 +208,7 @@ class Gui_opcard(QtWidgets.QDialog):
                 # Calculate time axis
                 time_axis = np.arange(0, len(sequence_data[0])) * t
                 
-                # Store datasets
+                # Store datasets, overwrite if they already exist
                 if 'waveforms' in site_group:
                     del site_group['waveforms']
                 if 'timestamps' in site_group:
@@ -209,10 +220,13 @@ class Gui_opcard(QtWidgets.QDialog):
                 site_group.create_dataset('timestamps', data=np.array(timestamps))
                 site_group.create_dataset('time_axis', data=time_axis)
                 
-                # Store metadata
-                site_group.attrs['acquisition_date'] = datetime.now().isoformat()
-                site_group.attrs['sampling_rate'] = 100e6
-                site_group.attrs['interval_ms'] = 100
+                # Store metadata:
+                site_group.attrs['acquisition_time'] = datetime.now().isoformat()
+                site_group.attrs['sampling_rate'] = self.settings.sampling_frequency.selection.currentText()
+                site_group.attrs['interval_ms'] = INTER_PULSE_INTERVAL
+                site_group.attrs['gain'] = self.settings.gain.data.value()
+                site_group.attrs['pre_amplifier'] = self.settings.pre_amplifier.selection.currentText()
+                site_group.attrs['pulse_width_us'] = self.settings.pulse_widht.data.value()
                 site_group.attrs['tooth_id'] = tooth_id
                 site_group.attrs['site_id'] = site_id
 
