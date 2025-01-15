@@ -10,7 +10,7 @@ import numpy as np
 import h5py
 from pathlib import Path
 import os
-from dotenv import load_dotenv
+import pyvisa
 import threading
 #import multiprocessing, time, signal
 from numpy import savetxt
@@ -19,17 +19,44 @@ from matplotlib import pyplot
 
 import gui_secondary
 
-load_dotenv()
-OPTEL_HW_ID = os.getenv('OPTEL_HW_ID')
+
+def find_usb_raw_resource():
+    """
+    Find the USB RAW resource address from NI-VISA.
+    Returns the first USB RAW resource found or None if not found.
+    """
+    try:
+        rm = pyvisa.ResourceManager()
+        resources = rm.list_resources("?*")
+        
+        # Look for our specific device
+        for resource in resources:
+            if ("USB" in resource and 
+                "RAW" in resource and 
+                "0x0547" in resource and # vendor ID
+                "0x1003" in resource): # product ID
+                return resource
+                
+        print("No matching USB RAW resource found")
+        return None
+        
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        return None
+    finally:
+        # Clean up
+        if 'rm' in locals():
+            rm.close()
+
 
 class Gui_opcard(QtWidgets.QDialog):
        
-    def __init__(self, parent=None, deviceNr=OPTEL_HW_ID):
+    def __init__(self, parent=None, deviceNr=find_usb_raw_resource()):
         QtWidgets.QDialog.__init__(self, parent)
 
 
         #------------------------------------------------------------------------------
-
+        self.hardware_ID = deviceNr
         self.on_off_d = False
         self.fname = "."
 
