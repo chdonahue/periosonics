@@ -10,6 +10,7 @@ import numpy as np
 import h5py
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 import threading
 #import multiprocessing, time, signal
 from numpy import savetxt
@@ -18,11 +19,12 @@ from matplotlib import pyplot
 
 import gui_secondary
 
-
+load_dotenv()
+OPTEL_HW_ID = os.getenv('OPTEL_HW_ID')
 
 class Gui_opcard(QtWidgets.QDialog):
        
-    def __init__(self, parent=None, deviceNr='USB0::0x0547::0x1003::SN_24.99::RAW'):
+    def __init__(self, parent=None, deviceNr=OPTEL_HW_ID):
         QtWidgets.QDialog.__init__(self, parent)
 
 
