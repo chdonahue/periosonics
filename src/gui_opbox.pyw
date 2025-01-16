@@ -192,12 +192,9 @@ class Gui_opcard(QtWidgets.QDialog):
             progress = QtWidgets.QProgressDialog("Collecting pulses...", None, 0, 10, self)
             progress.setWindowModality(QtCore.Qt.WindowModal)
             
-            # Make sure device is properly configured
-            self.settings.opcard.SetSamplingFreq(1)  # 100MHz
-            t = 1/100  # 100MHz
-            window = 100  # μs
-            n = int(window/t)
-            self.settings.opcard.SetBufferDepth(n)
+            # Time axis:
+            t = 1/self.settings.window.data.value()  
+
             
             for i in range(10):
                 progress.setValue(i)
