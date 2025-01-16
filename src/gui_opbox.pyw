@@ -192,8 +192,8 @@ class Gui_opcard(QtWidgets.QDialog):
             progress = QtWidgets.QProgressDialog("Collecting pulses...", None, 0, 10, self)
             progress.setWindowModality(QtCore.Qt.WindowModal)
             
-            # Time axis:
-            t = 1/self.settings.window.data.value()  
+            # Get sampling frequency:
+            sampling_freq = float(self.settings.sampling_frequency.selection.currentText().replace(" MHz", ""))
 
             
             for i in range(10):
@@ -232,19 +232,19 @@ class Gui_opcard(QtWidgets.QDialog):
                 site_group = tooth_group.require_group(f"site_{site_id}")
                 
                 # Calculate time axis
-                time_axis = np.arange(0, len(sequence_data[0])) * t
-                
+                t = np.arange(0, len(sequence_data[0])) / sampling_freq
+
                 # Store datasets, overwrite if they already exist
                 if 'waveforms' in site_group:
                     del site_group['waveforms']
                 if 'timestamps' in site_group:
                     del site_group['timestamps']
-                if 'time_axis' in site_group:
-                    del site_group['time_axis']
+                if 'time' in site_group:
+                    del site_group['time']
                     
                 site_group.create_dataset('waveforms', data=np.array(sequence_data))
                 site_group.create_dataset('timestamps', data=np.array(timestamps))
-                site_group.create_dataset('time_axis', data=time_axis)
+                site_group.create_dataset('time', data=t)
                 
                 # Store metadata:
                 site_group.attrs['acquisition_time'] = datetime.now().isoformat()
